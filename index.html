@@ -19,17 +19,18 @@
             }
 
             async log(name, email){
-                const notes = await this.#request.login(name, email)
+                const notes = await this.#request.login(name, email);
                 this.list  = notes.map(({ checked, value, priority, _id }) => {
-                    return new Note(value, priority, checked, _id)
+                    return new Note(value, priority, checked, _id);
                 })
-                return this.list
+                return this.list;
             }
             async create(note) {
+                
+                const responce = await this.#request.add(note);
+                note.id = responce._id;
                 this.list.push(note);
-                const responce = await this.#request.add(note)
-                note.id = responce._id
-                return this.list
+                return this.list;
             }
 
             remove(id) {
@@ -37,7 +38,7 @@
                 if (index === -1) return;
                 this.list.splice(index, 1);
                 this.#request.removeNote(id);
-                return this.list
+                return this.list;
             }
 
             getInfo() {
@@ -58,16 +59,16 @@
             changeText(id, text) {
                 const index = this.#searchNote(this.list, id);
                 if (index === -1) return;
-                this.list[index].editText(text)
-                this.#request.changeNote(id, this.list[index])
-                return this.list
+                this.list[index].editText(text);
+                this.#request.changeNote(id, this.list[index]);
+                return this.list;
             }
             changePriority(id, priority) {
                 const index = this.#searchNote(this.list, id);
                 if (index === -1) return;
-                this.list[index].editPriority(priority)
-                this.#request.changeNote(id, this.list[index])
-                return this.list
+                this.list[index].editPriority(priority);
+                this.#request.changeNote(id, this.list[index]);
+                return this.list;
             }
 
             changeStatus(id) {
@@ -75,7 +76,7 @@
                 if (index === -1) return;
                 this.list[index].changeNStatus(id);
                 this.#request.changeNoteStatus(id);
-                return this.list
+                return this.list;
             }
 
             #searchNote(arr, id) {
