@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+    'use strict'
+        class List {
+            #request
+            constructor(requests) {
+                this.list = [];
+                this.#request = requests;
+            }
+
+            async log(name, email){
+                const notes = await this.#request.login(name, email)
+                this.list  = notes.map(({ checked, value, priority, _id }) => {
+                    return new Note(value, priority, checked, _id)
+                })
+                return this.list
+            }
+            async create(note) {
+                this.list.push(note);
+                const responce = await this.#request.add(note)
+                note.id = responce._id
+                return this.list
+            }
+
+            remove(id) {
+                const index = this.#searchNote(this.list, id);
+                if (index === -1) return;
+                this.list.splice(index, 1);
+                this.#request.removeNote(id);
+                return this.list
+            }
+
+            getInfo() {
+                const titleCounter = {
+                    all: this.list.length,
+                    done: 0,
+                    toDo: 0
+                };
+                this.list.forEach(el => {
+                    if (el.status === false) {
+                        titleCounter.toDo += 1;
+                    } else titleCounter.done += 1;
+                });
+                return titleCounter;
+            }
+
+
+            changeText(id, text) {
+                const index = this.#searchNote(this.list, id);
+                if (index === -1) return;
+                this.list[index].editText(text)
+                this.#request.changeNote(id, this.list[index])
+                return this.list
+            }
+            changePriority(id, priority) {
+                const index = this.#searchNote(this.list, id);
+                if (index === -1) return;
+                this.list[index].editPriority(priority)
+                this.#request.changeNote(id, this.list[index])
+                return this.list
+            }
+
+            changeStatus(id) {
+                const index = this.#searchNote(this.list, id);
+                if (index === -1) return;
+                this.list[index].changeNStatus(id);
+                this.#request.changeNoteStatus(id);
+                return this.list
+            }
+
+            #searchNote(arr, id) {
+                return arr.findIndex(el => el.id === id);
+            }
+        }
+
+        class Note {
+
+            constructor(text, priority = 1, status = false, id = undefined) {
+                this.text = text;
+                this.priority = priority;
+                this.status = status;
+                this.id = id;
+            }
+
+            editText(newText) {
+                this.text = newText;
+            }
+            editPriority(newPriority){
+                this.priority = newPriority;
+            }
+
+            changeNStatus() {
+                if (!this.status) {
+                    this.status = true;
+                } else { this.status = false }
+            }
+        }
+
+        class ServerRequests {
+            #baseURL = 'https://todo.hillel.it';
+            #token = null;
+
+            async login(name, email) {
+                if (localStorage.getItem(name + email)) {
+                    this.#token = JSON.parse(localStorage.getItem(name + email));
+                }
+                if (!this.#token) {
+                    const responce = await fetch(`${this.#baseURL}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            value: name + email
+                        })
+                    })
+
+                    const { access_token } = await responce.json()
+                    this.#token = access_token;
+                    localStorage.setItem(name + email, JSON.stringify(this.#token))
+                }
+                return await this.getNotes();
+            }
+
+            async add(note) {
+                const toServer = {
+                    value: note.text,
+                    priority: note.priority
+                }
+                const responce = await fetch(`${this.#baseURL}/todo`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-type': 'application/json',
+                        'Authorization': `Bearer ${this.#token}`
+                    },
+                    body: JSON.stringify(toServer)
+                })
+
+                if (responce.ok) {
+                    const noteFromServer = await responce.json();
+                    return noteFromServer;
+                }
+            }
+            async getNotes() {
+                const responce = await fetch(`${this.#baseURL}/todo`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${this.#token}`
+                    }
+                })
+                if (responce.ok) {
+                    const notes = await responce.json();
+                    return notes;
+                }
+            }
+
+            async changeNote(noteID, newNote) {
+                const id = noteID.toString();
+                const toServer = {
+                    value: newNote.text,
+                    priority: newNote.priority
+                }
+                const responce = await fetch(`${this.#baseURL}/todo/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-type': 'application/json',
+                        'Authorization': `Bearer ${this.#token}`
+                    },
+                    body: JSON.stringify(toServer)
+                })
+            }
+            async changeNoteStatus(noteID) {
+                const id = noteID.toString();
+                const responce = await fetch(`${this.#baseURL}/todo/${id}/toggle`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-type': 'application/json',
+                        'Authorization': `Bearer ${this.#token}`
+                    }
+                })
+            }
+            async removeNote(noteID) {
+                const id = noteID.toString();
+                const responce = await fetch(`${this.#baseURL}/todo/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-type': 'application/json',
+                        'Authorization': `Bearer ${this.#token}`
+                    },
+                })
+            }
+        }
+        const toDo = new List(new ServerRequests());
+        toDo.log('AlexZV25', 'example123000@gmail.com')
+            .then(console.log)
+    </script>
+</body>
+
+</html>
